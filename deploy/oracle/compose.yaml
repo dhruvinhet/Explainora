@@ -1,0 +1,105 @@
+name: pencilvid
+
+x-runtime: &runtime
+  image: ${IMAGE:?Set IMAGE to an immutable GHCR tag}
+  env_file:
+    - ${RUNTIME_ENV_FILE:-./env/production.env}
+  environment: &runtime-environment
+    APP_ENV: production
+    APP_VERSION: ${APP_VERSION:?Set APP_VERSION to the deployed commit SHA}
+    JOB_EXECUTION_MODE: queue
+    USE_STREAMING: "1"
+    LOG_FORMAT: json
+    FFMPEG_BIN: ffmpeg
+    FFPROBE_BIN: ffprobe
+    # Production voice identity is part of the product contract. Fail closed
+    # if Piper is unavailable instead of silently changing narrators.
+    TTS_BACKEND: piper
+    PIPER_BIN: piper
+    PIPER_MODEL: /app/voices/en_US-lessac-medium.onnx
+    MAX_WORKERS: "2"
+    MAX_VISUAL_WORKERS: "8"
+    SCENE_WORKERS: "8"
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+  networks:
+    - internal
+  volumes:
+    - render-work:/app/work
+    - render-outputs:/app/outputs
+    - app-home:/home/pencilvid
+
+services:
+  web:
+    <<: *runtime
+    expose:
+      - "5000"
+    networks:
+      - edge
+      - internal
+    cpus: "0.75"
+    mem_limit: 1g
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/readyz', timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 45s
+    stop_grace_period: 45s
+
+  worker:
+    <<: *runtime
+    command: ["python", "worker.py"]
+    # Keep queue traffic isolated from the public edge while still providing
+    # outbound NAT for Supabase and model-provider API calls.
+    networks:
+      - internal
+      - egress
+    environment:
+      <<: *runtime-environment
+      WORKER_HEALTH_FILE: /tmp/pencilvid-worker-heartbeat
+    cpus: "4.0"
+    mem_limit: 8g
+    healthcheck:
+      test: ["CMD", "python", "scripts/worker_healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 10m
+
+  caddy:
+    image: caddy:2.10-alpine
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN to the public hostname}
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - edge
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      web:
+        condition: service_started
+    cpus: "0.15"
+    mem_limit: 256m
+
+networks:
+  edge:
+  egress:
+  internal:
+    internal: true
+
+volumes:
+  app-home:
+  caddy-config:
+  caddy-data:
+  render-outputs:
+  render-work:

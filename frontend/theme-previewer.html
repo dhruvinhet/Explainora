@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="default">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Explainora — Creative Color Themes Showcase</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+  
+  <style>
+    /* ============================================================
+       THEME DECLARATIONS & DESIGN SYSTEM TOKENS
+       ============================================================ */
+    :root {
+      /* Theme 1: Retrowave Deep (Synthwave Purple & Neon Mint) */
+      --theme-title: "Retrowave Deep";
+      --canvas: #0d081b;
+      --canvas-rgb: 13, 8, 27;
+      --surface: #17122b;
+      --surface-rgb: 23, 18, 43;
+      --surface-muted: #221b3d;
+      --text: #f5f2fa;
+      --text-rgb: 245, 242, 250;
+      --text-secondary: #a69ebf;
+      --text-tertiary: #71698a;
+      --border: #282045;
+      --border-strong: #3d3460;
+      --accent: #10b981;
+      --accent-rgb: 16, 185, 129;
+      --accent-soft: rgba(16, 185, 129, 0.15);
+      --success: #06b6d4;
+      --danger: #f43f5e;
+      --paper: #1e1936;
+
+      /* Shared sizing & spacing tokens from Explainora */
+      --shadow-xs: 0 1px 2px rgba(var(--text-rgb), 0.04);
+      --shadow-sm: 0 1px 2px rgba(var(--text-rgb), 0.04), 0 2px 6px rgba(var(--text-rgb), 0.03);
+      --shadow-md: 0 2px 4px rgba(var(--text-rgb), 0.04), 0 8px 24px -6px rgba(var(--text-rgb), 0.08);
+      --shadow-lg: 0 4px 8px rgba(var(--text-rgb), 0.04), 0 24px 56px -12px rgba(var(--text-rgb), 0.14);
+      --shadow-accent: 0 8px 28px -8px rgba(var(--accent-rgb), 0.28);
+
+      --accent-a08: rgba(var(--accent-rgb), 0.08);
+      --accent-a16: rgba(var(--accent-rgb), 0.16);
+      --text-a04: rgba(var(--text-rgb), 0.04);
+      --text-a08: rgba(var(--text-rgb), 0.08);
+
+      --r-xs: 8px;
+      --r-sm: 12px;
+      --r-md: 16px;
+      --r-lg: 22px;
+      --r-xl: 28px;
+      --r-pill: 999px;
+
+      --sans: 'Inter', system-ui, -apple-system, sans-serif;
+      --mono: 'JetBrains Mono', monospace;
+    }
+
+    [data-theme="bauhaus"] {
+      /* Theme 2: Bauhaus Art (Klein Blue & Ochre) */
+      --theme-title: "Bauhaus Art";
+      --canvas: #f1efe9;
+      --canvas-rgb: 241, 239, 233;
+      --surface: #ffffff;
+      --surface-rgb: 255, 255, 255;
+      --surface-muted: #e8e5dc;
+      --text: #0b0c10;
+      --text-rgb: 11, 12, 16;
+      --text-secondary: #595b66;
+      --text-tertiary: #828594;
+      --border: #d5d2c6;
+      --border-strong: #b8b5a7;
+      --accent: #002fa7;
+      --accent-rgb: 0, 47, 167;
+      --accent-soft: rgba(0, 47, 167, 0.08);
+      --success: #0ea5e9;
+      --danger: #b91c1c;
+      --paper: #fffefb;
+    }
+
+    [data-theme="terracotta"] {
+      /* Theme 3: Terracotta Clay (Warm Craft Earth & Rust) */
+      --theme-title: "Terracotta Clay";
+      --canvas: #ebdcd0;
+      --canvas-rgb: 235, 220, 208;
+      --surface: #fcfaf7;
+      --surface-rgb: 252, 250, 247;
+      --surface-muted: #e3cca8;
+      --text: #33221e;
+      --text-rgb: 51, 34, 30;
+      --text-secondary: #7a5f57;
+      --text-tertiary: #9a7c73;
+      --border: #dfccbe;
+      --border-strong: #c6b0a2;
+      --accent: #b85042;
+      --accent-rgb: 184, 80, 66;
+      --accent-soft: rgba(184, 80, 66, 0.10);
+      --success: #4d6840;
+      --danger: #9a2818;
+      --paper: #fffdfb;
+    }
+
+    [data-theme="aurora"] {
+      /* Theme 4: Aurora Midnight (Teal-Green & Cosmic Lilac) */
+      --theme-title: "Aurora Midnight";
+      --canvas: #081312;
+      --canvas-rgb: 8, 19, 18;
+      --surface: #112120;
+      --surface-rgb: 17, 33, 32;
+      --surface-muted: #1a2f2d;
+      --text: #e6f2f0;
+      --text-rgb: 230, 242, 240;
+      --text-secondary: #8ca8a4;
+      --text-tertiary: #5a7874;
+      --border: #1a2f2d;
+      --border-strong: #264441;
+      --accent: #c084fc;
+      --accent-rgb: 192, 132, 252;
+      --accent-soft: rgba(192, 132, 252, 0.15);
+      --success: #10b981;
+      --danger: #f43f5e;
+      --paper: #142928;
+    }
+
+    [data-theme="vintage"] {
+      /* Theme 5: Vintage Letter (Sepia Parchment & Bordeaux Red) */
+      --theme-title: "Vintage Letter";
+      --canvas: #dfd6c6;
+      --canvas-rgb: 223, 214, 198;
+      --surface: #faf7f0;
+      --surface-rgb: 250, 247, 240;
+      --surface-muted: #d4c9b7;
+      --text: #1c1917;
+      --text-rgb: 28, 25, 23;
+      --text-secondary: #57534e;
+      --text-tertiary: #78716c;
+      --border: #c5baaa;
+      --border-strong: #ab9f8d;
+      --accent: #8b1e3f;
+      --accent-rgb: 139, 30, 63;
+      --accent-soft: rgba(139, 30, 63, 0.08);
+      --success: #14532d;
+      --danger: #7f1d1d;
+      --paper: #fcfaf7;
+    }
+
+    [data-theme="cyberrose"] {
+      /* Theme 6: Cyberrose Dark (Dark Violet & Electric Pink) */
+      --theme-title: "Cyberrose Dark";
+      --canvas: #08080f;
+      --canvas-rgb: 8, 8, 15;
+      --surface: #12121e;
+      --surface-rgb: 18, 18, 30;
+      --surface-muted: #1b1b2d;
+      --text: #f3e8ff;
+      --text-rgb: 243, 232, 255;
+      --text-secondary: #b3a8c4;
+      --text-tertiary: #7d7290;
+      --border: #212133;
+      --border-strong: #353552;
+      --accent: #ec4899;
+      --accent-rgb: 236, 72, 153;
+      --accent-soft: rgba(236, 72, 153, 0.15);
+      --success: #06b6d4;
+      --danger: #f43f5e;
+      --paper: #161629;
+    }
+
+    /* ============================================================
+       BASE PAGE STYLES
+       ============================================================ */
+    * {
+      box-sizing: border-box;
+      transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease, box-shadow 0.25s ease;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+      background-color: var(--canvas);
+      color: var(--text);
+      font-family: var(--sans);
+      font-size: 16px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1240px;
+      margin: 0 auto;
+      padding: 40px 24px;
+    }
+
+    /* ============================================================
+       HEADER & INTRO
+       ============================================================ */
+    header {
+      margin-bottom: 32px;
+      border-bottom: 1px solid var(--border);
+      padding-bottom: 24px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: var(--r-pill);
+      background-color: var(--accent-soft);
+      color: var(--accent);
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 38px;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      color: var(--text);
+    }
+
+    .tagline {
+      margin: 8px 0 0;
+      font-size: 16px;
+      color: var(--text-secondary);
+      max-width: 70ch;
+    }
+
+    /* ============================================================
+       THEME SELECTOR CARDS GRID
+       ============================================================ */
+    .themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    .theme-card {
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      background: var(--surface);
+      padding: 16px;
+      cursor: pointer;
+      text-align: left;
+      box-shadow: var(--shadow-sm);
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+    }
+
+    .theme-card:hover {
+      transform: translateY(-2px);
+      box-shadow: var(--shadow-md);
+      border-color: var(--border-strong);
+    }
+
+    .theme-card.active {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 1px var(--accent), var(--shadow-md);
+    }
+
+    .theme-name {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: var(--text);
+    }
+
+    .theme-preview-dots {
+      display: flex;
+      gap: 6px;
+      margin-bottom: 12px;
+    }
+
+    .dot {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      border: 1px solid rgba(var(--text-rgb), 0.1);
+    }
+
+    .theme-card.active::after {
+      content: "✓";
+      position: absolute;
+      top: 12px;
+      right: 14px;
+      color: var(--accent);
+      font-weight: 800;
+      font-size: 14px;
+    }
+
+    /* ============================================================
+       SANDBOX SECTION (MOCK UI PREVIEWS)
+       ============================================================ */
+    .sandbox-container {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 32px;
+      align-items: start;
+    }
+
+    @media (max-width: 900px) {
+      .sandbox-container {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .sandbox-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 32px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .panel-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .panel-title span.active-indicator {
+      color: var(--accent);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      text-transform: none;
+      font-size: 13px;
+      letter-spacing: normal;
+    }
+
+    /* Mock Header */
+    .mock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 54px;
+      border: 1px solid var(--border);
+      border-radius: var(--r-sm);
+      padding: 0 16px;
+      background: var(--surface);
+      margin-bottom: 24px;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .mock-logo {
+      font-weight: 800;
+      font-size: 13px;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text);
+    }
+
+    .logo-mark {
+      width: 24px;
+      height: 24px;
+      border-radius: 6px;
+      background: var(--text);
+      color: var(--surface);
+      display: grid;
+      place-items: center;
+      font-weight: 900;
+      font-size: 12px;
+    }
+
+    .mock-nav {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-secondary);
+    }
+
+    .mock-nav span.active {
+      color: var(--text);
+    }
+
+    .mock-btn-sm {
+      font-size: 11.5px;
+      font-weight: 600;
+      background: var(--text);
+      color: var(--surface);
+      border-radius: var(--r-xs);
+      padding: 6px 12px;
+      cursor: pointer;
+    }
+
+    /* Mock Composer */
+    .mock-composer {
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 20px;
+      background: var(--surface);
+      margin-bottom: 24px;
+      position: relative;
+      box-shadow: var(--shadow-xs);
+    }
+
+    .mock-composer:focus-within, .mock-composer.focus-preview {
+      box-shadow: var(--shadow-lg), 0 0 0 4px var(--accent-a08);
+      border-color: var(--accent-a16);
+    }
+
+    .mock-prompt-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--text-tertiary);
+      margin-bottom: 8px;
+    }
+
+    .mock-textarea {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.3;
+      margin-bottom: 20px;
+      min-height: 52px;
+      position: relative;
+    }
+
+    .mock-caret {
+      display: inline-block;
+      width: 2px;
+      height: 1.1em;
+      background: var(--accent);
+      vertical-align: middle;
+      margin-left: 2px;
+      animation: blink 1s steps(1) infinite;
+    }
+
+    @keyframes blink {
+      50% { opacity: 0; }
+    }
+
+    .mock-composer-bottom {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-top: 1px solid var(--border);
+      padding-top: 14px;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .mock-segmented-control {
+      display: flex;
+      background: var(--surface-muted);
+      border-radius: 8px;
+      padding: 2px;
+    }
+
+    .mock-seg-btn {
+      font-size: 11px;
+      font-weight: 600;
+      padding: 5px 10px;
+      border-radius: 6px;
+      color: var(--text-secondary);
+      cursor: pointer;
+    }
+
+    .mock-seg-btn.active {
+      background: var(--surface);
+      color: var(--text);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .mock-btn-primary {
+      background: var(--accent);
+      color: var(--surface);
+      font-size: 13px;
+      font-weight: 600;
+      padding: 10px 18px;
+      border-radius: var(--r-xs);
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      box-shadow: var(--shadow-accent);
+      border: none;
+    }
+
+    .mock-btn-primary:hover {
+      opacity: 0.9;
+    }
+
+    /* Mock Cards & Info panels */
+    .mock-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+
+    @media (max-width: 600px) {
+      .mock-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    .mock-card {
+      border: 1px solid var(--border);
+      border-radius: var(--r-md);
+      padding: 16px;
+      background: var(--surface);
+      box-shadow: var(--shadow-xs);
+    }
+
+    .mock-card-title {
+      font-weight: 700;
+      font-size: 13.5px;
+      margin: 0 0 6px 0;
+      color: var(--text);
+    }
+
+    .mock-card-body {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Note paper sketch mock */
+    .mock-paper-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .mock-paper-wrap {
+      position: relative;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--r-sm);
+      background: repeating-linear-gradient(var(--paper) 0, var(--paper) 27px, rgba(var(--accent-rgb), 0.12) 28px), var(--paper);
+      padding: 40px 16px 20px 60px;
+      box-shadow: var(--shadow-xs);
+      overflow: hidden;
+      min-height: 180px;
+    }
+
+    .mock-paper-wrap::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 48px;
+      width: 1px;
+      background: rgba(183, 68, 50, 0.32);
+    }
+
+    .mock-paper-tape {
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%) rotate(-1.5deg);
+      width: 90px;
+      height: 18px;
+      background: rgba(var(--accent-rgb), 0.10);
+      border: 1px solid rgba(var(--accent-rgb), 0.16);
+      border-radius: 2px;
+    }
+
+    .mock-paper-text {
+      font-family: 'Caveat', cursive, var(--sans);
+      font-size: 18px;
+      font-weight: 600;
+      line-height: 28px;
+      color: var(--text);
+    }
+
+    /* ============================================================
+       SIDE DETAIL PANEL (TOKENS LIST)
+       ============================================================ */
+    .tokens-panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--r-lg);
+      padding: 24px;
+      box-shadow: var(--shadow-md);
+    }
+
+    .token-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--surface-muted);
+      font-size: 12.5px;
+    }
+
+    .token-row:last-child {
+      border-bottom: none;
+    }
+
+    .token-label {
+      font-family: var(--mono);
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .token-val-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .token-color-preview {
+      width: 16px;
+      height: 16px;
+      border-radius: 4px;
+      border: 1px solid rgba(var(--text-rgb), 0.15);
+    }
+
+    .token-hex {
+      font-family: var(--mono);
+      font-weight: 600;
+      color: var(--text);
+      font-size: 11px;
+    }
+
+    /* Grid layout inside sandbox for layout demonstration */
+    .sandbox-layout {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <header>
+      <span class="badge" id="badgeIndicator">Theme Showcase</span>
+      <h1 id="themeTitle">Explainora Creative Themes</h1>
+      <p class="tagline">Explore 6 artistic and highly non-typical color schemes designed to give explanations a signature premium look.</p>
+    </header>
+
+    <!-- Theme Selection Grid -->
+    <div class="themes-grid" role="radiogroup" aria-label="Theme Selection">
+      
+      <!-- Retrowave Deep -->
+      <button class="theme-card active" data-theme-id="default" id="theme-default" aria-checked="true" role="radio">
+        <div class="theme-name">Retrowave Deep</div>
+        <div class="theme-preview-dots">
+          <div class="dot" style="background: #10b981;"></div>
+          <div class="dot" style="background: #17122b;"></div>
+          <div class="dot" style="background: #0d081b;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">Obsidian purple & neon mint</div>
+      </button>
+
+      <!-- Bauhaus Art -->
+      <button class="theme-card" data-theme-id="bauhaus" id="theme-bauhaus" aria-checked="false" role="radio">
+        <div class="theme-name">Bauhaus Art</div>
+        <div class="theme-preview-dots">
+          <div class="dot" style="background: #002fa7;"></div>
+          <div class="dot" style="background: #ffffff;"></div>
+          <div class="dot" style="background: #f1efe9;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">Parchment, black & Klein Blue</div>
+      </button>
+
+      <!-- Terracotta Clay -->
+      <button class="theme-card" data-theme-id="terracotta" id="theme-terracotta" aria-checked="false" role="radio">
+        <div class="theme-name">Terracotta Clay</div>
+        <div class="theme-preview-dots">
+          <div class="dot" style="background: #b85042;"></div>
+          <div class="dot" style="background: #fcfaf7;"></div>
+          <div class="dot" style="background: #ebdcd0;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">Cozy craft earth & terracotta rust</div>
+      </button>
+
+      <!-- Aurora Midnight -->
+      <button class="theme-card" data-theme-id="aurora" id="theme-aurora" aria-checked="false" role="radio">
+        <div class="theme-name">Aurora Midnight</div>
+        <div class="theme-preview-dots">
+          <div class="dot" style="background: #c084fc;"></div>
+          <div class="dot" style="background: #112120;"></div>
+          <div class="dot" style="background: #081312;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">Midnight teal & aurora lilac</div>
+      </button>
+
+      <!-- Vintage Letter -->
+      <button class="theme-card" data-theme-id="vintage" id="theme-vintage" aria-checked="false" role="radio">
+        <div class="theme-name">Vintage Letter</div>
+        <div class="theme-preview-dots">
+          <div class="dot" style="background: #8b1e3f;"></div>
+          <div class="dot" style="background: #faf7f0;"></div>
+          <div class="dot" style="background: #dfd6c6;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">Sepia print & Bordeaux wine</div>
+      </button>
+
+      <!-- Cyberrose Dark -->
+      <button class="theme-card" data-theme-id="cyberrose" id="theme-cyberrose" aria-checked="false" role="radio">
+        <div class="theme-name">Cyberrose Dark</div>
+        <div class="theme-preview-dots">
+          <div class="dot" style="background: #ec4899;"></div>
+          <div class="dot" style="background: #12121e;"></div>
+          <div class="dot" style="background: #08080f;"></div>
+        </div>
+        <div style="font-size: 11px; color: var(--text-secondary);">Violet slate & electric pink</div>
+      </button>
+
+    </div>
+
+    <!-- Sandbox and Details Container -->
+    <div class="sandbox-container">
+      
+      <!-- Interactive Sandbox UI Preview -->
+      <div class="sandbox-panel">
+        <div class="panel-title">
+          Interactive Mock Workspace
+          <span class="active-indicator" id="activeThemeIndicator">
+            <span class="dot" style="width: 8px; height: 8px; background: var(--accent); border: none;"></span>
+            Active: Retrowave Deep
+          </span>
+        </div>
+
+        <div class="sandbox-layout">
+          <!-- Mock Header component -->
+          <div class="mock-header">
+            <div class="mock-logo">
+              <span class="logo-mark">S</span>
+              EXPLAINORA
+            </div>
+            <div class="mock-nav">
+              <span class="active">New video</span>
+              <span>My videos</span>
+              <span class="mock-btn-sm">Start explaining</span>
+            </div>
+          </div>
+
+          <!-- Mock Composer component -->
+          <div class="mock-composer" id="composerBox">
+            <div class="mock-prompt-label">What do you want to understand?</div>
+            <div class="mock-textarea">
+              Explain how cache memory speeds up computers
+              <span class="mock-caret"></span>
+            </div>
+            <div class="mock-composer-bottom">
+              <div class="mock-segmented-control">
+                <span class="mock-seg-btn active">2 min</span>
+                <span class="mock-seg-btn">4 min</span>
+                <span class="mock-seg-btn">6 min</span>
+              </div>
+              <button class="mock-btn-primary" id="btnPreview">
+                Generate video <span>→</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Mock ruled drawing note pad -->
+          <div class="mock-paper-card">
+            <div class="mock-paper-wrap">
+              <div class="mock-paper-tape"></div>
+              <div class="mock-paper-text">
+                ✏️ Visual Plan notes:<br>
+                1. Split explanations into duration-locked scenes.<br>
+                2. Apply graphic styles matching the active skin.<br>
+                3. Align Piper local voice outputs with scene timings.
+              </div>
+            </div>
+          </div>
+
+          <!-- Mock Grid & Alert States -->
+          <div class="mock-grid">
+            <div class="mock-card">
+              <h4 class="mock-card-title">Responsive Grid Cards</h4>
+              <p class="mock-card-body">Cards adapt layout borders and backgrounds based on surface and canvas properties.</p>
+            </div>
+            <div class="mock-card">
+              <h4 class="mock-card-title">Soft Shadows</h4>
+              <p class="mock-card-body">Elevation shadows shift opacity based on text color levels dynamically.</p>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Color Swatch Variables Details List -->
+      <div class="tokens-panel">
+        <div class="panel-title" style="margin-bottom: 16px;">Active CSS Color Tokens</div>
+        
+        <div id="tokensList">
+          <!-- Populated by JS on click -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Theme palette details to populate active tokens panel
+    const themePalettes = {
+      default: {
+        title: "Retrowave Deep",
+        colors: [
+          { token: "--canvas", val: "#0d081b" },
+          { token: "--surface", val: "#17122b" },
+          { token: "--surface-muted", val: "#221b3d" },
+          { token: "--text", val: "#f5f2fa" },
+          { token: "--text-secondary", val: "#a69ebf" },
+          { token: "--accent", val: "#10b981" },
+          { token: "--accent-soft", val: "rgba(16, 185, 129, 0.15)" },
+          { token: "--success", val: "#06b6d4" },
+          { token: "--danger", val: "#f43f5e" },
+          { token: "--paper", val: "#1e1936" }
+        ]
+      },
+      bauhaus: {
+        title: "Bauhaus Art",
+        colors: [
+          { token: "--canvas", val: "#f1efe9" },
+          { token: "--surface", val: "#ffffff" },
+          { token: "--surface-muted", val: "#e8e5dc" },
+          { token: "--text", val: "#0b0c10" },
+          { token: "--text-secondary", val: "#595b66" },
+          { token: "--accent", val: "#002fa7" },
+          { token: "--accent-soft", val: "rgba(0, 47, 167, 0.08)" },
+          { token: "--success", val: "#0ea5e9" },
+          { token: "--danger", val: "#b91c1c" },
+          { token: "--paper", val: "#fffefb" }
+        ]
+      },
+      terracotta: {
+        title: "Terracotta Clay",
+        colors: [
+          { token: "--canvas", val: "#ebdcd0" },
+          { token: "--surface", val: "#fcfaf7" },
+          { token: "--surface-muted", val: "#e3cca8" },
+          { token: "--text", val: "#33221e" },
+          { token: "--text-secondary", val: "#7a5f57" },
+          { token: "--accent", val: "#b85042" },
+          { token: "--accent-soft", val: "rgba(184, 80, 66, 0.10)" },
+          { token: "--success", val: "#4d6840" },
+          { token: "--danger", val: "#9a2818" },
+          { token: "--paper", val: "#fffdfb" }
+        ]
+      },
+      aurora: {
+        title: "Aurora Midnight",
+        colors: [
+          { token: "--canvas", val: "#081312" },
+          { token: "--surface", val: "#112120" },
+          { token: "--surface-muted", val: "#1a2f2d" },
+          { token: "--text", val: "#e6f2f0" },
+          { token: "--text-secondary", val: "#8ca8a4" },
+          { token: "--accent", val: "#c084fc" },
+          { token: "--accent-soft", val: "rgba(192, 132, 252, 0.15)" },
+          { token: "--success", val: "#10b981" },
+          { token: "--danger", val: "#f43f5e" },
+          { token: "--paper", val: "#142928" }
+        ]
+      },
+      vintage: {
+        title: "Vintage Letter",
+        colors: [
+          { token: "--canvas", val: "#dfd6c6" },
+          { token: "--surface", val: "#faf7f0" },
+          { token: "--surface-muted", val: "#d4c9b7" },
+          { token: "--text", val: "#1c1917" },
+          { token: "--text-secondary", val: "#57534e" },
+          { token: "--accent", val: "#8b1e3f" },
+          { token: "--accent-soft", val: "rgba(139, 30, 63, 0.08)" },
+          { token: "--success", val: "#14532d" },
+          { token: "--danger", val: "#7f1d1d" },
+          { token: "--paper", val: "#fcfaf7" }
+        ]
+      },
+      cyberrose: {
+        title: "Cyberrose Dark",
+        colors: [
+          { token: "--canvas", val: "#08080f" },
+          { token: "--surface", val: "#12121e" },
+          { token: "--surface-muted", val: "#1b1b2d" },
+          { token: "--text", val: "#f3e8ff" },
+          { token: "--text-secondary", val: "#b3a8c4" },
+          { token: "--accent", val: "#ec4899" },
+          { token: "--accent-soft", val: "rgba(236, 72, 153, 0.15)" },
+          { token: "--success", val: "#06b6d4" },
+          { token: "--danger", val: "#f43f5e" },
+          { token: "--paper", val: "#161629" }
+        ]
+      }
+    };
+
+    const rootHtml = document.documentElement;
+    const activeThemeIndicator = document.getElementById('activeThemeIndicator');
+    const badgeIndicator = document.getElementById('badgeIndicator');
+    const themeTitleText = document.getElementById('themeTitle');
+    const tokensListContainer = document.getElementById('tokensList');
+    const composerBox = document.getElementById('composerBox');
+
+    // Focus state visualization trigger on Composer click
+    composerBox.addEventListener('click', () => {
+      composerBox.classList.add('focus-preview');
+      setTimeout(() => composerBox.classList.remove('focus-preview'), 1500);
+    });
+
+    // Populate tokens panel for a given theme
+    function updateTokensList(themeId) {
+      const palette = themePalettes[themeId];
+      tokensListContainer.innerHTML = '';
+      
+      palette.colors.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'token-row';
+        row.innerHTML = `
+          <span class="token-label">${item.token}</span>
+          <div class="token-val-wrap">
+            <span class="token-color-preview" style="background: ${item.val};"></span>
+            <span class="token-hex">${item.val}</span>
+          </div>
+        `;
+        tokensListContainer.appendChild(row);
+      });
+    }
+
+    // Set Theme Action
+    function applyTheme(themeId) {
+      // Set attribute on HTML root
+      rootHtml.setAttribute('data-theme', themeId);
+      
+      // Update Selection buttons active states
+      document.querySelectorAll('.theme-card').forEach(btn => {
+        const isCurrent = btn.getAttribute('data-theme-id') === themeId;
+        btn.classList.toggle('active', isCurrent);
+        btn.setAttribute('aria-checked', isCurrent ? 'true' : 'false');
+      });
+
+      // Update text details on header preview
+      const activeTitle = themePalettes[themeId].title;
+      activeThemeIndicator.innerHTML = `
+        <span class="dot" style="width: 8px; height: 8px; background: var(--accent); border: none;"></span>
+        Active: ${activeTitle}
+      `;
+      badgeIndicator.textContent = activeTitle;
+      themeTitleText.textContent = `Explainora — ${activeTitle}`;
+
+      // Update list of variables
+      updateTokensList(themeId);
+    }
+
+    // Bind clicks to Theme Selector cards
+    document.querySelectorAll('.theme-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const themeId = card.getAttribute('data-theme-id');
+        applyTheme(themeId);
+      });
+    });
+
+    // Initialize default theme list
+    applyTheme('default');
+  </script>
+</body>
+</html>

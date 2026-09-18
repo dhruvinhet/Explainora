@@ -1,0 +1,12 @@
+[
+  {"category":"physical_illustration","prompt":"Show a pump moving water from a lower tank to an upper tank.","entities":["pump","lower tank","upper tank"]},
+  {"category":"timeline","prompt":"Show discovery, testing, launch, and adoption in order.","entities":["discovery","testing","launch","adoption"]},
+  {"category":"map","prompt":"Show a source region connected to two destination regions.","entities":["source region","destination one","destination two"]},
+  {"category":"algorithm","prompt":"Show input, validation, transformation, and output.","entities":["input","validation","transformation","output"]},
+  {"category":"mathematics","prompt":"Show a variable entering an equation and producing a result.","entities":["variable","equation","result"]},
+  {"category":"code","prompt":"Show request, function, return value, and caller.","entities":["request","function","return value","caller"]},
+  {"category":"comparison","prompt":"Compare two categorical choices without invented proportions.","entities":["choice A","choice B"]},
+  {"category":"quantitative_chart","prompt":"Show authorized categories as labeled values.","entities":["category A","category B","authorized value"]},
+  {"category":"branded_product","prompt":"Show a named product and its user, preserving the product name.","entities":["named product","user"]},
+  {"category":"long_narrative","prompt":"Show the problem, mechanism, example, consequence, and takeaway.","entities":["problem","mechanism","example","consequence","takeaway"]}
+]

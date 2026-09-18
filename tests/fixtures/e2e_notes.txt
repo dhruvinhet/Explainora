@@ -1,0 +1,3 @@
+Binary search works on a sorted list. Compare the target with the middle item,
+discard the half that cannot contain the target, and repeat until it is found
+or the search interval is empty. Its time complexity is logarithmic.

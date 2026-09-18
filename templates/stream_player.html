@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Explain → Video — Streaming Player</title>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f5f5f3;
+      color: #171717;
+    }
+    .page { max-width: 1120px; margin: 0 auto; padding: 42px 22px 80px; }
+    h1 { font-size: clamp(30px, 5vw, 52px); margin: 0 0 10px; letter-spacing: -0.04em; }
+    .sub { color: #606060; max-width: 760px; font-size: 17px; line-height: 1.55; }
+    .card { background: #fff; border: 1px solid #e5e5e5; border-radius: 22px; padding: 24px; box-shadow: 0 10px 35px rgba(0,0,0,.05); }
+
+    /* Video player — a real <video> element, so all browser controls work:
+       play/pause, seek bar, volume, fullscreen, PiP, and correct total time. */
+    .video-wrap { position: relative; width: 100%; background: #000; border-radius: 18px; overflow: hidden; }
+    video { width: 100%; aspect-ratio: 16 / 9; display: block; background: #000; }
+
+    /* Seamless-appending overlays ------------------------------------------
+       seamFade: a frozen frame of the previous frame during a chunk append,
+       fades out over ~250ms so the exact swap instant is never visible.
+       renderNote: gentle "still rendering next scene…" cue shown when the
+       viewer has caught the live tail (replaces the old buffering spinner). */
+    .video-wrap .seam-fade {
+      position: absolute; inset: 0; background-size: cover; background-position: center;
+      opacity: 0; pointer-events: none; transition: opacity .25s ease-out;
+    }
+    .video-wrap .seam-fade.active { opacity: 1; transition: none; }
+    .video-wrap .buffer-note {
+      position: absolute; bottom: 0; left: 0; right: 0;
+      background: rgba(0,0,0,.55); color: #fff; font-size: 13px;
+      padding: 7px 14px; display: none; pointer-events: none;
+    }
+
+    /* Live cost meter (feature E) ------------------------------------------ */
+    .cost-meter { display: flex; gap: 18px; align-items: center; margin-top: 12px;
+      font-size: 13px; color: #676767; flex-wrap: wrap; min-height: 20px; }
+    .cost-meter .chip { border: 1px solid #e5e5e5; border-radius: 999px;
+      padding: 3px 11px; background: #fafafa; }
+    .cost-meter .chip b { color: #111; }
+
+    .scene-counter { margin-top: 12px; font-size: 14px; color: #676767; min-height: 20px; }
+
+    .status-top { display: flex; justify-content: space-between; align-items: baseline; margin-top: 12px; }
+    .stage { font-weight: 800; }
+    .detail { color: #676767; font-size: 14px; margin-top: 5px; }
+    .error { color: #a40000; }
+
+    .links { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .links a { color: #111; text-decoration: none; border: 1px solid #d8d8d8; border-radius: 10px; padding: 10px 13px; background: #fff; }
+
+    /* Post-run token breakdown --------------------------------------------- */
+    .breakdown { margin-top: 18px; display: none; }
+    .breakdown h3 { font-size: 15px; margin: 0 0 8px; }
+    .breakdown table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .breakdown th, .breakdown td { border-bottom: 1px solid #eee; padding: 6px 8px; text-align: left; }
+    .breakdown th { color: #676767; font-weight: 600; }
+    .breakdown tr.total td { font-weight: 800; border-bottom: none; }
+    .breakdown .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+
+    @media (max-width: 760px) { .page { padding-top: 26px; } }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <div class="hero">
+      <h1>Watch while it's created</h1>
+      <div class="sub">Streaming mode: the video starts the moment scene 1 is ready — pause, seek, and scrub just like any normal video while later scenes finish rendering in the background.</div>
+    </div>
+
+    <section class="card">
+      <div class="video-wrap">
+        <video id="player" controls playsinline preload="metadata">
+          Your browser does not support HTML5 video.
+        </video>
+        <div id="seamFade" class="seam-fade" aria-hidden="true"></div>
+        <div id="bufferNote" class="buffer-note">Buffering — the next scene is being rendered, playback resumes automatically…</div>
+      </div>
+      <div id="costMeter" class="cost-meter"></div>
+      <div class="scene-counter" id="counter">&nbsp;</div>
+      <div class="status-top">
+        <div>
+          <div id="stage" class="stage">Connecting</div>
+          <div id="detail" class="detail">Waiting for the first scene…</div>
+        </div>
+        <strong id="percent">0%</strong>
+      </div>
+      <div id="error" class="detail error"></div>
+
+      <div class="links">
+        <a id="finalLink" href="#" style="display:none" target="_blank">Download final MP4</a>
+        <a id="manifestLink" href="#" style="display:none" target="_blank">Open manifest JSON</a>
+        <a id="evaluationLink" href="#" style="display:none" download>Download evaluation JSON</a>
+        <a id="llmLogLink" href="#" download>Download complete pipeline trace</a>
+        <a href="/" style="display:inline-block">← New video</a>
+      </div>
+
+      <div id="breakdown" class="breakdown"></div>
+    </section>
+  </main>
+
+  <script>
+    const JOB_ID = "{{ job_id }}";
+    const STREAM_URL = `/segments/${JOB_ID}/stream.mp4`;
+    const MANIFEST_URL = `/segments/${JOB_ID}/manifest`;
+    document.getElementById('llmLogLink').href = `/api/logs/${JOB_ID}/download`;
+    const MP4_TYPE = 'video/mp4; codecs="avc1.64001f"';
+
+    // --------------------------------------------------------------------------
+    // Why the previous full-file swap stuttered:
+    //   Every scene append re-downloaded the ENTIRE grown stream.mp4 and called
+    //   video.load(), which re-decoded every frame → ~1s freeze + spinner.
+    //
+    //   New architecture (chunked live playlist):
+    //     * The server finishes each scene as its own complete
+    //       scene_NNN/segment.mp4 and atomically updates a live manifest.json.
+    //     * The player opens ONE MediaSource stream and feeds each finished
+    //       scene's bytes into a SourceBuffer exactly once (append order).
+    //     * Already-buffered frames are never re-decoded: a new scene arriving
+    //       while you watch adds its bytes at the tail only → seamless.
+    //     * A 250ms frozen-frame cross-fade covers the exact moment the source
+    //       buffer takes the new bytes, so no visual seam is ever visible.
+    //     * If MSE isn't usable in this browser, we fall back to the old
+    //       blob-swap — but only when you're within ~3s of the buffered tail,
+    //       where the freeze is invisible.
+    // --------------------------------------------------------------------------
+    const video = document.getElementById('player');
+    const seamFade = document.getElementById('seamFade');
+    const bufferNote = document.getElementById('bufferNote');
+    const counter = document.getElementById('counter');
+    const costMeter = document.getElementById('costMeter');
+
+    // ------- MediaSource chunked player ---------------------------------------
+    let mse = null;
+    let sourceBuffer = null;
+    let mseReady = false;
+    let appendedCount = 0;        // scenes already fed into the SourceBuffer
+    let appendInFlight = false;   // serialize appends (appendBuffer is async)
+    let appendQueue = [];
+    let lastManifestVersion = -1;
+
+    function canUseMSE() {
+      // Our scene assets are complete MP4 files (ftyp/mdat/moov), not
+      // fragmented MP4 init/media segments. Appending them to MediaSource
+      // leaves Chromium at 0:00. Use the atomically rebuilt fast-start stream
+      // through the robust HTML5/blob refresh path on every browser.
+      return false;
+    }
+
+    // Freeze the current frame into the seam-fade overlay so we can cover the
+    // sub-frame instant when new bytes land in the SourceBuffer.
+    function showSeamFade() {
+      try {
+        const cv = document.createElement('canvas');
+        cv.width = video.videoWidth || 640;
+        cv.height = video.videoHeight || 360;
+        const ctx = cv.getContext('2d');
+        ctx.drawImage(video, 0, 0, cv.width, cv.height);
+        seamFade.style.backgroundImage = `url(${cv.toDataURL('image/jpeg', 0.7)})`;
+        seamFade.classList.add('active');
+        // Release the fade quickly — the transition ends after 250ms.
+        setTimeout(() => seamFade.classList.remove('active'), 260);
+      } catch (e) { /* video not paintable yet; skip the fade */ }
+    }
+
+    function openMSE() {
+      mse = new MediaSource();
+      video.src = URL.createObjectURL(mse);
+      mse.addEventListener('sourceopen', () => {
+        sourceBuffer = mse.addSourceBuffer(MP4_TYPE);
+        sourceBuffer.mode = 'sequence';
+        mseReady = true;
+        URL.revokeObjectURL(video.src);
+        drainAppendQueue();
+      });
+      mse.addEventListener('sourceended', () => { mseReady = false; });
+      // If the browser rejects the stream (codec mismatch / old engine), fall
+      // back to the legacy blob-swap path so playback is never dead.
+      mse.addEventListener('sourceerror', () => {
+        mseReady = false;
+        setStatus('warning', 'Seamless mode unavailable — using smooth fallback.', 0);
+      });
+    }
+
+    // Fetch one scene MP4 into a Blob (retries partial/half-written reads).
+    async function fetchSceneBlob(url, retries = 6) {
+      for (let i = 0; i <= retries; i += 1) {
+        try {
+          const res = await fetch(url + '?v=' + Date.now(), { cache: 'no-store' });
+          if (!res.ok) { await new Promise((r) => setTimeout(r, 900)); continue; }
+          const blob = await res.blob();
+          if (blob.size < 4096) { await new Promise((r) => setTimeout(r, 900)); continue; }
+          const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+          // ftyp box sanity check.
+          if (head[4] !== 0x66 || head[5] !== 0x74 || head[6] !== 0x79 || head[7] !== 0x70) {
+            await new Promise((r) => setTimeout(r, 900)); continue;
+          }
+          return blob;
+        } catch (e) { await new Promise((r) => setTimeout(r, 900)); }
+      }
+      return null;
+    }
+
+    // Serialize SourceBuffer appends; cover each append with the seam fade.
+    function drainAppendQueue() {
+      while (!appendInFlight && appendQueue.length) {
+        const next = appendQueue.shift();
+        appendInFlight = true;
+        next.blob.arrayBuffer().then((buf) => {
+          showSeamFade();
+          sourceBuffer.appendBuffer(buf);
+          appendInFlight = false;
+          next.done && next.done(null);
+          drainAppendQueue();
+        }).catch((e) => {
+          appendInFlight = false;
+          next.done && next.done(e);
+          drainAppendQueue();
+        });
+      }
+    }
+
+    function appendScene(blob) {
+      return new Promise((resolve) => {
+        appendQueue.push({ blob, done: resolve });
+        if (mseReady && sourceBuffer && !sourceBuffer.updating) drainAppendQueue();
+      });
+    }
+
+    // Read the live manifest; feed any not-yet-appended scene into the buffer.
+    let pollBusy = false;
+    async function pollManifest() {
+      if (pollBusy) return;
+      pollBusy = true;
+      try {
+        const res = await fetch(MANIFEST_URL + '?v=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        const scenes = data.scenes || [];
+        if (scenes.length) {
+          const current = scenes.findIndex(
+            (s) => video.currentTime < s.start_seconds + s.duration_seconds) + 1;
+          counter.textContent = `Scene ${Math.max(1, Math.min(scenes.length, current))} / ${scenes.length} · ${data.total_seconds.toFixed(1)}s rendered`;
+        }
+        if (!scenes.length || data.version <= lastManifestVersion) return;
+        const start = Math.max(0, appendedCount);
+        for (let i = start; i < scenes.length; i += 1) {
+          if (!mseReady) break;
+          const scene = scenes[i];
+          const blob = await fetchSceneBlob(scene.url);
+          if (!blob) break;
+          // Append in strict playlist order — sequence mode requires it.
+          await appendScene(blob);
+          appendedCount = i + 1;
+        }
+        lastManifestVersion = data.version;
+        if (scenes.length && appendedCount >= scenes.length &&
+            video.buffered.length > 0 &&
+            video.currentTime >= video.buffered.end(video.buffered.length - 1) - 0.25) {
+          // viewer caught the live tail — the video element handles this via
+          // the 'waiting' event; we just keep polling.
+        }
+      } catch (e) { /* poll noise */ }
+      finally { pollBusy = false; }
+    }
+
+    // ------- Legacy blob-swap fallback (non-MSE browsers) ----------------------
+    // Only swaps when the viewer is close to the buffered tail, where the
+    // re-decode freeze is invisible to the eye.
+    let blobFallbackSize = 0;
+    let streamSwapInFlight = false;
+    let jobIsComplete = false;
+    async function checkNewSceneFallback(force = false) {
+      if (streamSwapInFlight || video.seeking) return false;
+      try {
+        const res = await fetch(`/segments/${JOB_ID}/scene_offsets.json`, { cache: 'no-store' });
+        if (!res.ok) return false;
+        const data = await res.json();
+        const size = data.total_seconds || 0;
+        if (size <= blobFallbackSize + 0.1) return false;
+
+        // Do not replace the media source while somebody is reviewing an
+        // earlier point. Wait until playback reaches the buffered tail; the
+        // existing Blob already contains every earlier frame and remains
+        // fully seekable.
+        const remaining = Number.isFinite(video.duration)
+          ? video.duration - video.currentTime : 0;
+        const reviewingEarlier = video.paused || remaining > 3.0;
+        if (!force && reviewingEarlier) return false;
+
+        streamSwapInFlight = true;
+        const blob = await fetchStreamBlob();
+        if (!blob) return false;
+
+        // Capture position after the fetch. The viewer may seek while the
+        // network request is in flight; using a pre-fetch snapshot would undo
+        // that seek when the new source is installed.
+        if (video.seeking) return false;
+        const resumeAt = video.currentTime > 0.5 ? video.currentTime : 0;
+        const playing = !video.paused && video.readyState >= 2;
+        const oldBlobUrl = video.src.startsWith('blob:') ? video.src : null;
+        const newBlobUrl = URL.createObjectURL(blob);
+        video.src = newBlobUrl;
+        video.load();
+        const resume = () => {
+          video.removeEventListener('loadedmetadata', resume);
+          video.currentTime = Math.min(resumeAt, Math.max(0, video.duration - 0.05));
+          blobFallbackSize = size;
+          if (oldBlobUrl) URL.revokeObjectURL(oldBlobUrl);
+          if (playing) video.play().catch(() => {});
+        };
+        video.addEventListener('loadedmetadata', resume);
+        return true;
+      } catch (e) { return false; }
+      finally { streamSwapInFlight = false; }
+    }
+
+    async function fetchStreamBlob(retries = 5) {
+      for (let attempt = 0; attempt <= retries; attempt += 1) {
+        try {
+          const res = await fetch(STREAM_URL + '?v=' + Date.now(), { cache: 'no-store' });
+          if (!res.ok) { await new Promise((r) => setTimeout(r, 1200)); continue; }
+          const blob = await res.blob();
+          if (blob.size < 4096) { await new Promise((r) => setTimeout(r, 1200)); continue; }
+          const head = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
+          if (head[4] !== 0x66 || head[5] !== 0x74 || head[6] !== 0x79 || head[7] !== 0x70) {
+            await new Promise((r) => setTimeout(r, 1200)); continue;
+          }
+          return blob;
+        } catch (e) { await new Promise((r) => setTimeout(r, 1200)); }
+      }
+      return null;
+    }
+
+    // Decode-error recovery (fallback path only; MSE surfaces errors itself).
+    let errorRetries = 0;
+    video.addEventListener('error', () => {
+      errorRetries += 1;
+      if (errorRetries > 6) {
+        setStatus('failed', 'The video could not be loaded. Try reloading the page.', 0);
+        return;
+      }
+      setTimeout(() => { video.load(); }, 1500 * errorRetries);
+    });
+
+    video.addEventListener('ended', () => {
+      checkNewSceneFallback(true).then((changed) => {
+        if (changed) video.play().catch(() => {});
+      });
+    });
+
+    video.addEventListener('seeking', () => { bufferNote.style.display = 'none'; });
+    video.addEventListener('waiting', () => {
+      const atTail = Number.isFinite(video.duration)
+        && video.duration - video.currentTime < 1.0;
+      bufferNote.style.display = (!jobIsComplete && !video.seeking && atTail)
+        ? 'block' : 'none';
+    });
+    video.addEventListener('playing', () => { bufferNote.style.display = 'none'; });
+
+    // Wait until the live playlist has at least one scene, then open the MSE
+    // stream so the video element never decodes a half-grown file.
+    let mseOpened = false;
+    async function openWhenReady() {
+      for (let i = 0; i < 120; i += 1) {
+        try {
+          const res = await fetch(MANIFEST_URL, { cache: 'no-store' });
+          if (res.ok) {
+            const data = await res.json();
+            if ((data.scenes || []).length) {
+              if (canUseMSE()) {
+                openMSE();
+              } else {
+                // Non-MSE browser: load the legacy stream.mp4 once it exists.
+                for (let j = 0; j < 90; j += 1) {
+                  try {
+                    const sr = await fetch(STREAM_URL, { method: 'HEAD' });
+                    if (sr.ok && Number(sr.headers.get('content-length') || 0) > 0) {
+                      video.src = STREAM_URL;
+                      video.load();
+                      mseOpened = true;
+                      return;
+                    }
+                  } catch (e) { /* server not ready yet */ }
+                  await new Promise((r) => setTimeout(r, 1000));
+                }
+                setStatus('failed', 'The video is not available. The job may have failed.', 0);
+              }
+              mseOpened = true;
+              return;
+            }
+          }
+        } catch (e) { /* server not ready yet */ }
+        await new Promise((r) => setTimeout(r, 1000));
+      }
+      setStatus('failed', 'The video is not available. The job may have failed.', 0);
+    }
+
+    // Poll loops — manifest every 1.5s (cheap, tiny JSON), offsets only for
+    // the legacy fallback path.
+    setInterval(() => { if (mseOpened && canUseMSE()) pollManifest(); }, 1500);
+    setInterval(() => { if (mseOpened && !canUseMSE()) checkNewSceneFallback(); }, 2000);
+    openWhenReady();
+
+    // ------- Live cost meter (feature E) --------------------------------------
+    // Tokens/cost come from the per-run log (append-only JSONL — cheap to sum);
+    // the streaming player polls /api/logs/<job> rather than a per-job field.
+    let lastCost = null;
+    async function refreshCostMeter() {
+      try {
+        const res = await fetch(`/api/logs/${JOB_ID}`);
+        if (!res.ok) return;
+        const s = await res.json();
+        const m = (s && s.live_cost) || {};
+        const text = (tokens, cost, seconds) =>
+          `${tokens ? `<span class="chip"><b>${tokens.toLocaleString()}</b> tokens</span>` : ''}` +
+          `${m.cost_inr != null ? `<span class="chip">≈ <b>₹${Number(m.cost_inr).toFixed(4)}</b> LLM</span>` : ''}` +
+          `${cost != null ? `<span class="chip"><b>$${Number(cost).toFixed(6)}</b></span>` : ''}` +
+          `${seconds ? `<span class="chip"><b>${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, '0')}</b> wall time</span>` : ''}`;
+        if (!m || (!m.tokens && m.tokens !== 0)) { costMeter.innerHTML = ''; return; }
+        const html = text(m.tokens, m.cost_usd, m.wall_seconds);
+        if (html !== lastCost) { costMeter.innerHTML = html; lastCost = html; }
+      } catch (e) { /* noise */ }
+    }
+    setInterval(refreshCostMeter, 4000);
+
+    // ------- Post-run token breakdown ------------------------------------------
+    async function renderBreakdown() {
+      try {
+        const [summaryRes, callsRes] = await Promise.all([
+          fetch(`/api/logs/${JOB_ID}`), fetch(`/api/logs/${JOB_ID}/calls`)
+        ]);
+        if (!summaryRes.ok || !callsRes.ok) return;
+        const summary = await summaryRes.json();
+        const data = await callsRes.json();
+        const calls = (Array.isArray(data) ? data : (data.calls || []))
+          .filter(c => c.kind === 'llm');
+        if (!calls.length) return;
+        const wrap = document.getElementById('breakdown');
+        const rows = calls.map((c, i) => {
+          return `<tr><td class="mono">${i + 1}</td><td>${c.stage || 'llm'}</td><td>${c.model || 'unknown'}</td>` +
+            `<td>${(c.prompt_tokens || 0).toLocaleString()}</td><td>${(c.completion_tokens || 0).toLocaleString()}</td>` +
+            `<td>${(c.cached_prompt_tokens || 0).toLocaleString()}</td><td>${(c.reasoning_tokens || 0).toLocaleString()}</td>` +
+            `<td>${((c.latency_ms || 0) / 1000).toFixed(1)}s</td>` +
+            `<td class="mono">${c.cost_usd == null ? 'unpriced' : '$' + Number(c.cost_usd).toFixed(6)}</td>` +
+            `<td class="mono">${c.cost_inr == null ? '—' : '₹' + Number(c.cost_inr).toFixed(4)}</td></tr>`;
+        }).join('');
+        wrap.innerHTML =
+          `<h3>LLM usage for this video (${calls.length} calls) — ≈ ₹${Number(summary.estimated_inr_cost || 0).toFixed(4)} ` +
+          `($${Number(summary.estimated_usd_cost || 0).toFixed(6)})</h3>` +
+          `<div style="font-size:12px;color:#676767;margin-bottom:8px">List-price estimate; taxes/credits excluded. ` +
+          `$1 = ₹${Number(summary.pricing?.usd_to_inr?.rate || 0).toFixed(4)} ` +
+          `(${summary.pricing?.usd_to_inr?.as_of || ''}).</div>` +
+          `<table><thead><tr><th>#</th><th>Step</th><th>Model</th><th>Input</th>` +
+          `<th>Output</th><th>Cached</th><th>Reasoning</th><th>Latency</th><th>USD</th><th>INR</th>` +
+          `</tr></thead><tbody>${rows}<tr class="total"><td colspan="3">Total</td>` +
+          `<td>${Number(summary.total_prompt_tokens || 0).toLocaleString()}</td>` +
+          `<td>${Number(summary.total_completion_tokens || 0).toLocaleString()}</td>` +
+          `<td>${Number(summary.total_cached_prompt_tokens || 0).toLocaleString()}</td>` +
+          `<td>${Number(summary.total_reasoning_tokens || 0).toLocaleString()}</td><td>—</td>` +
+          `<td class="mono">$${Number(summary.estimated_usd_cost || 0).toFixed(6)}</td>` +
+          `<td class="mono">₹${Number(summary.estimated_inr_cost || 0).toFixed(4)}</td>` +
+          `</tr></tbody></table>`;
+        wrap.style.display = 'block';
+      } catch (e) { /* noise */ }
+    }
+
+    // ------- status / socket helpers -------------------------------------------
+    function setStatus(stage, detail, progress) {
+      document.getElementById('stage').textContent = String(stage || '').replaceAll('_', ' ');
+      document.getElementById('detail').textContent = detail || '';
+      const p = Math.max(0, Math.min(100, Number(progress || 0)));
+      document.getElementById('percent').textContent = `${p}%`;
+    }
+
+    function setError(msg) {
+      if (msg) document.getElementById('error').textContent = msg;
+    }
+
+    // ------- Socket.IO connection ----------------------------------------------
+    const socket = io();
+
+    socket.on('connect', () => socket.emit('rejoin', { job_id: JOB_ID }));
+
+    socket.on('job_stage', (data) => {
+      if (data && data.stage) setStatus(data.stage, data.detail, data.progress);
+    });
+
+    socket.on('segment_ready', () => {
+      // Wake the manifest poll immediately on every finished scene.
+      if (mseOpened) lastManifestVersion = -1;
+    });
+
+    let completionHandled = false;
+    function handleJobCompleted(data) {
+      if (completionHandled) return;
+      completionHandled = true;
+      jobIsComplete = true;
+      setStatus('completed', `Finished — full render took ${Number(data.final_duration_seconds || 0).toFixed(1)}s`, 100);
+      const final = document.getElementById('finalLink');
+      final.href = data.output_url || `/outputs/${JOB_ID}/final.mp4`;
+      final.style.display = 'inline-block';
+      const manifest = document.getElementById('manifestLink');
+      manifest.href = `/outputs/${JOB_ID}/manifest.json`;
+      manifest.style.display = 'inline-block';
+      const evaluation = document.getElementById('evaluationLink');
+      evaluation.href = data.evaluation_url || `/outputs/${JOB_ID}/evaluation.json`;
+      evaluation.style.display = 'inline-block';
+      // Completion must converge on the immutable MP4. A temporary stream can
+      // have a non-empty src while remaining stalled at 0:00, so checking only
+      // video.error/empty-src leaves a blank player forever.
+      const finalUrl = new URL(final.href, window.location.href);
+      let currentPath = '';
+      try { currentPath = new URL(video.currentSrc || video.src, window.location.href).pathname; } catch (e) {}
+      if (currentPath !== finalUrl.pathname || video.error || video.readyState < 2) {
+        const resumeAt = Number.isFinite(video.currentTime) ? video.currentTime : 0;
+        const shouldResume = !video.paused;
+        video.src = `${finalUrl.pathname}?v=${Date.now()}`;
+        video.load();
+        video.addEventListener('loadedmetadata', () => {
+          if (resumeAt > 0 && Number.isFinite(video.duration)) {
+            video.currentTime = Math.min(resumeAt, Math.max(0, video.duration - 0.1));
+          }
+          if (shouldResume) video.play().catch(() => {});
+        }, { once: true });
+      }
+      renderBreakdown();
+      refreshCostMeter();
+      bufferNote.style.display = 'none';
+      // final.mp4 is now byte-for-byte synchronized with the assembled live
+      // stream. Keep the current source so completion cannot interrupt a
+      // backward seek; refresh only when playback naturally reaches its tail.
+      checkNewSceneFallback(false);
+    }
+    socket.on('job_completed', handleJobCompleted);
+
+    socket.on('job_failed', (data) => {
+      setStatus('failed', 'Generation failed', 0);
+      setError(data && data.error ? data.error : 'Generation failed.');
+      if (data && data.evaluation_url) {
+        const evaluation = document.getElementById('evaluationLink');
+        evaluation.href = data.evaluation_url;
+        evaluation.style.display = 'inline-block';
+      }
+    });
+
+    // Fallback polling in case the socket never receives completion.
+    setInterval(async () => {
+      try {
+        const res = await fetch(`/api/jobs/${JOB_ID}`);
+        if (!res.ok) return;
+        const job = await res.json();
+        if (job.status === 'completed') {
+          handleJobCompleted({ job_id: JOB_ID, final_duration_seconds: job.final_duration_seconds, output_url: job.output_url, evaluation_url: job.evaluation_url });
+        } else if (job.status === 'failed') {
+          setError(job.error || 'Generation failed.');
+          if (job.evaluation_url) {
+            const evaluation = document.getElementById('evaluationLink');
+            evaluation.href = job.evaluation_url;
+            evaluation.style.display = 'inline-block';
+          }
+        } else if (job.stage) {
+          setStatus(job.stage, job.detail, job.progress);
+        }
+      } catch (e) { /* ignore poll noise */ }
+    }, 2500);
+  </script>
+</body>
+</html>

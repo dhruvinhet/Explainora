@@ -1,0 +1,42 @@
+flowchart TB
+    user[Web user]
+    subgraph edge[Delivery layer]
+        https[HTTPS / reverse proxy]
+        spa[React + Vite single-page application]
+    end
+    subgraph app[Application layer]
+        api[Flask API<br/>Auth · validation · quota · job APIs]
+        local[Optional in-process executor<br/>Development mode]
+        worker[Render worker pool<br/>Queue claim · heartbeat · cancellation]
+    end
+    subgraph data[Supabase platform]
+        auth[Supabase Auth]
+        db[(Postgres<br/>profiles · plans · jobs · scenes · videos · events)]
+        storage[(Private object storage<br/>source · audio · images · MP4 · manifests)]
+        queue[Durable job queue<br/>Postgres claim with SKIP LOCKED]
+    end
+    subgraph external[Generation dependencies]
+        models[LLM providers<br/>NVIDIA · Groq · OpenRouter · Cerebras]
+        icons[Iconify API + local cache]
+        voice[Local Piper TTS]
+        media[FFmpeg / browser renderer]
+    end
+    user --> https --> spa
+    spa -->|Bearer token + JSON / multipart| api
+    api --> auth
+    api --> db
+    api --> queue
+    api -->|signed media URLs| storage
+    api -. local development .-> local
+    local --> models
+    local --> voice
+    local --> media
+    worker --> queue
+    worker --> db
+    worker --> storage
+    worker --> models
+    worker --> icons
+    worker --> voice
+    worker --> media
+    storage -->|private/signed delivery| spa
+

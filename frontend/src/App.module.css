@@ -1,0 +1,12 @@
+.screen{
+  animation:var(--kf-screen-in) var(--d4) var(--ease-out) both;
+}
+.authLoading {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  font: 700 0.86rem/1.2 var(--font-mono);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}

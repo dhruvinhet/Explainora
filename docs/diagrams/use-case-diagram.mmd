@@ -1,0 +1,48 @@
+flowchart LR
+    visitor[Visitor]
+    user[Registered User]
+    admin[Operator / Admin]
+    payment[Payment Provider]
+    llm[LLM Provider]
+
+    subgraph system["PencilVid / Simi Studio"]
+        browse([Browse landing page and examples])
+        auth([Sign up, sign in, recover password])
+        manage([Manage profile and preferences])
+        create([Create explainer-video request])
+        upload([Upload source document])
+        configure([Choose audience, style, duration, and quality])
+        monitor([Monitor scene-by-scene progress])
+        cancel([Cancel generation])
+        preview([Preview buffered scenes])
+        library([View personal video library])
+        watch([Watch and download completed video])
+        plans([View plans and upgrade subscription])
+        account([Change password or delete account])
+        operations([Inspect health, logs, jobs, usage, and key-pool status])
+        generate([Generate script, narration, visuals, captions, and MP4])
+        quota([Authenticate, rate-limit, and reserve quota])
+    end
+
+    visitor --> browse
+    visitor --> auth
+    user --> manage
+    user --> create
+    user --> monitor
+    user --> cancel
+    user --> preview
+    user --> library
+    user --> watch
+    user --> plans
+    user --> account
+    admin --> operations
+    create -. includes .-> upload
+    create -. includes .-> configure
+    create -. includes .-> quota
+    create -. triggers .-> generate
+    generate --> llm
+    plans --> payment
+    generate -. publishes progress .-> monitor
+    generate -. produces .-> preview
+    generate -. stores .-> library
+

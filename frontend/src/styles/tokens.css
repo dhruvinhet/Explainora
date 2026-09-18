@@ -1,0 +1,51 @@
+:root{
+  --canvas:#f7f7f4; --surface:#ffffff; --surface-muted:#f1f1ed;
+  --text:#151515; --text-secondary:#6f6f6a; --text-tertiary:#70706a;
+  --border:#e3e3de; --border-strong:#d2d2cc;
+  --accent:#315fda; --accent-soft:#edf1fc;
+  --brutal-blue:#60a5fa;
+  --brutal-shadow-sm:3px 3px 0 var(--text),6px 6px 0 var(--brutal-blue);
+  --brutal-shadow:5px 5px 0 var(--text),10px 10px 0 var(--brutal-blue);
+  --success:#3f765b; --danger:#b74432;
+  --paper:#fffdf6;
+
+  --shadow-xs:0 1px 2px rgba(21,21,21,.04);
+  --shadow-sm:0 1px 2px rgba(21,21,21,.04),0 2px 6px rgba(21,21,21,.03);
+  --shadow-md:0 2px 4px rgba(21,21,21,.04),0 8px 24px -6px rgba(21,21,21,.08);
+  --shadow-lg:0 4px 8px rgba(21,21,21,.04),0 24px 56px -12px rgba(21,21,21,.14);
+  --shadow-accent:0 8px 28px -8px rgba(49,95,218,.28);
+
+  --accent-a08:rgba(49,95,218,.08);
+  --accent-a16:rgba(49,95,218,.16);
+  --text-a04:rgba(21,21,21,.04);
+  --text-a08:rgba(21,21,21,.08);
+
+  --ease-out:cubic-bezier(.16,1,.3,1);
+  --ease-inout:cubic-bezier(.65,0,.35,1);
+  --ease-spring:cubic-bezier(.34,1.56,.64,1);
+  --d1:120ms; --d2:200ms; --d3:320ms; --d4:560ms;
+
+  --s1:4px;--s2:8px;--s3:12px;--s4:16px;--s5:24px;--s6:32px;--s7:48px;--s8:64px;--s9:96px;
+
+  --r-xs:8px;--r-sm:12px;--r-md:16px;--r-lg:22px;--r-xl:28px;--r-pill:999px;
+  --shell:min(1180px,100vw - 48px);
+  --sans:'Inter',ui-sans-serif,system-ui,-apple-system,sans-serif;
+  --mono:'JetBrains Mono',ui-monospace,SFMono-Regular,monospace;
+  --hand:'Caveat',cursive;
+}
+
+:root[data-plan-theme='pro']{
+  --canvas:#f7f9ff;--surface-muted:#edf1ff;
+  --border:#d7dff7;--border-strong:#b8c5ed;
+  --accent:#1e3a8a;--accent-soft:#dbeafe;--brutal-blue:#1e40af;
+  --shadow-accent:0 8px 28px -8px rgba(65,105,225,.34);
+  --accent-a08:rgba(65,105,225,.10);--accent-a16:rgba(65,105,225,.20);
+}
+
+:root[data-plan-theme='pro-ultra']{
+  --canvas:#fbf8ff;--surface-muted:#f2eafe;
+  --border:#e2d5f5;--border-strong:#cbb5eb;
+  --accent:#6d28d9;--accent-soft:#f0e5ff;--brutal-blue:#7c3aed;
+  --shadow-accent:0 8px 28px -8px rgba(124,58,237,.34);
+  --accent-a08:rgba(124,58,237,.09);--accent-a16:rgba(124,58,237,.18);
+}

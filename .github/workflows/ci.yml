@@ -1,0 +1,102 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: sudo apt-get update && sudo apt-get install -y ffmpeg espeak-ng librsvg2-bin
+      - run: python -m pip install --upgrade pip pytest
+      - run: python -m pip install -r requirements.lock
+      - run: python -m pytest -q
+      - run: python scripts/check_migrations.py
+      - run: python scripts/scan_tracked_secrets.py
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm audit --audit-level=high
+
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: supabase start -x studio,imgproxy,inbucket,edge-runtime,logflare,vector,supavisor
+      - run: supabase db reset
+      - run: supabase test db
+      - if: always()
+        run: supabase stop --no-backup
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: [backend, frontend]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          push: false
+          tags: pencilvid:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke-test web image
+        shell: bash
+        run: |
+          set -euo pipefail
+          container_id="$(docker run --detach --rm --publish 127.0.0.1::5000 \
+            --env APP_ENV=development --env JOB_EXECUTION_MODE=inline pencilvid:ci)"
+          trap 'docker stop "$container_id" >/dev/null 2>&1 || true' EXIT
+          port="$(docker inspect --format '{{(index (index .NetworkSettings.Ports "5000/tcp") 0).HostPort}}' "$container_id")"
+          attempt=0
+          while (( attempt < 30 )); do
+            attempt=$((attempt + 1))
+            if curl --fail --silent --show-error "http://127.0.0.1:${port}/readyz" >/dev/null; then
+              curl --fail --silent --show-error "http://127.0.0.1:${port}/healthz" >/dev/null
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs "$container_id"
+          exit 1
+      - name: Smoke-test worker image
+        run: >-
+          docker run --rm --env APP_ENV=development --env JOB_EXECUTION_MODE=inline
+          --entrypoint python pencilvid:ci -c
+          "import worker; worker._touch_health('idle'); import runpy; runpy.run_path('scripts/worker_healthcheck.py', run_name='__main__')"

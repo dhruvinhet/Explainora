@@ -1,0 +1,75 @@
+flowchart LR
+    subgraph client[React client]
+        composer[Composer]
+        production[ProductionProvider / progress UI]
+        player[BufferedScenePlayer]
+        library[Library and video detail]
+        apiClient[API client + auth token]
+        composer --> apiClient
+        apiClient --> production
+        production --> player
+        apiClient --> library
+    end
+    subgraph web[Flask web container]
+        routes[API routes]
+        security[Auth · ownership · rate limit · quota]
+        store[SupabaseStore adapter]
+        routes --> security --> store
+    end
+    subgraph persistence[Supabase]
+        auth[Auth]
+        jobs[(video_jobs + generation_events)]
+        catalog[(profiles + plans + subscriptions + usage)]
+        metadata[(videos + video_scenes + video_assets)]
+        objects[(private storage buckets)]
+    end
+    subgraph worker[Worker container]
+        claim[Job claimer + heartbeat + cancellation watcher]
+        runtime[JobRuntimeConfig]
+        orchestrator[Job orchestrator]
+        extract[Document extraction]
+        director[Director + narration compiler]
+        quality[Explanation / continuity / quantity quality gates]
+        pipeline[Segment pipeline]
+        assembler[Incremental video assembler]
+        report[Manifest + quality report + run log]
+        claim --> runtime --> orchestrator
+        orchestrator --> extract --> director --> quality --> pipeline
+        pipeline --> assembler --> report
+    end
+    subgraph scene[Per-scene parallel pipeline]
+        narration[TTS engine<br/>Piper + word timing]
+        visual[Visual engine<br/>LLM plan + deterministic storyboard]
+        validate[Visual quality + freeform repair]
+        animate[Animated scene + camera engine]
+        raster[SVG / frames to PNG]
+        encode[FFmpeg scene MP4 + captions]
+        narration --> animate
+        visual --> validate --> animate
+        animate --> raster --> encode
+    end
+    subgraph ai[Provider abstraction]
+        config[LLMConfig / role routing]
+        keys[APIKeyPool<br/>reservation · limits · quarantine]
+        providers[Provider APIs]
+        config --> keys --> providers
+    end
+    apiClient --> routes
+    security --> auth
+    security --> catalog
+    store --> jobs
+    store --> metadata
+    store --> objects
+    claim --> jobs
+    orchestrator --> store
+    director --> config
+    visual --> config
+    pipeline --> narration
+    pipeline --> visual
+    encode --> assembler
+    report --> metadata
+    report --> objects
+    jobs -. 1-second polling .-> production
+    objects -. signed scene/media URLs .-> player
+    objects -. completed assets .-> library
+

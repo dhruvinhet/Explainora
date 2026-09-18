@@ -1,0 +1,11 @@
+Flask>=3.0,<4
+openai>=1.40
+requests>=2.31
+cairosvg>=2.7
+python-dotenv>=1.0
+flask-socketio>=5.4
+python-engineio>=4.9
+python-socketio>=5.10
+gunicorn>=22.0
+supabase>=2.28,<3
+piper-tts>=1.7,<2

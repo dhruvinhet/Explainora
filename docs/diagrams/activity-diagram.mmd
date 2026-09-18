@@ -1,0 +1,43 @@
+flowchart TD
+    start((Start)) --> compose[Enter prompt or attach document]
+    compose --> config[Choose audience, style, duration, captions, and quality]
+    config --> submit[Submit generation request]
+    submit --> valid{Request valid and authenticated?}
+    valid -- No --> reject[Show validation or authentication error] --> stop1((End))
+    valid -- Yes --> quota{Rate limit and quota available?}
+    quota -- No --> limit[Return limit or upgrade guidance] --> stop2((End))
+    quota -- Yes --> reserve[Atomically reserve quota and create queued job]
+    reserve --> worker[Worker claims job]
+    worker --> extract{Source document attached?}
+    extract -- Yes --> parse[Extract and sanitize document text]
+    extract -- No --> plan
+    parse --> plan[Director builds scope-locked scene plan]
+    plan --> preflight{Plan passes duration, coverage, and factual checks?}
+    preflight -- No, repairable --> revise[Repair or revise plan] --> preflight
+    preflight -- No, terminal --> fail[Persist failure and diagnostics] --> refund[Release reserved quota where applicable] --> stop3((End))
+    preflight -- Yes --> scenes[Persist planned scenes]
+    scenes --> parallel{{For each scene in parallel}}
+    parallel --> tts[Generate narration audio and timestamps]
+    parallel --> visuals[Generate and validate storyboard / SVG]
+    tts --> ready{Audio and visual ready?}
+    visuals --> ready
+    ready -- No, retry available --> retry[Repair or fallback scene asset] --> parallel
+    ready -- No, exhausted --> fail
+    ready -- Yes --> segment[Render animated scene segment and captions]
+    segment --> publish[Persist scene status and publish buffered progress]
+    publish --> more{More scenes?}
+    more -- Yes --> parallel
+    more -- No --> concat[Concatenate segments and mix final media]
+    concat --> quality{Final quality and duration acceptable?}
+    quality -- No, recoverable --> repairfinal[Apply bounded repair or tempo correction] --> quality
+    quality -- No, terminal --> fail
+    quality -- Yes --> store[Upload video, poster, manifest, and evaluation]
+    store --> complete[Mark job complete and record usage]
+    complete --> notify[Client receives final URLs and library entry]
+    notify --> stop4((End))
+    cancel{Cancellation requested?}
+    worker -. checks .-> cancel
+    parallel -. checks .-> cancel
+    concat -. checks .-> cancel
+    cancel -- Yes --> canceled[Stop safely and mark canceled] --> stop5((End))
+

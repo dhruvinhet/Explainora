@@ -1,0 +1,129 @@
+name: Release
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  image:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: |
+            ghcr.io/harsh271777/pencilvid:production
+            ghcr.io/harsh271777/pencilvid:${{ github.sha }}
+          build-args: |
+            VITE_SUPABASE_URL=${{ vars.VITE_SUPABASE_URL }}
+            VITE_SUPABASE_PUBLISHABLE_KEY=${{ vars.VITE_SUPABASE_PUBLISHABLE_KEY }}
+            VITE_PUBLIC_DEMO_URL=${{ vars.VITE_PUBLIC_DEMO_URL }}
+            VITE_PUBLIC_DEMO_POSTER_URL=${{ vars.VITE_PUBLIC_DEMO_POSTER_URL }}
+            VITE_PUBLIC_DEMO_TITLE=${{ vars.VITE_PUBLIC_DEMO_TITLE }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  maintenance:
+    needs: image
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: production
+    steps:
+      - name: Configure verified SSH host
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Enable maintenance mode when already deployed
+        env:
+          OCI_HOST: ${{ vars.OCI_HOST }}
+          OCI_USER: ${{ vars.OCI_USER }}
+        run: >-
+          ssh "${OCI_USER}@${OCI_HOST}"
+          'if [ -x /opt/pencilvid/maintenance.sh ]; then cd /opt/pencilvid && ./maintenance.sh on; fi'
+
+  database:
+    needs: maintenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+      SUPABASE_PROJECT_REF: ${{ vars.SUPABASE_PROJECT_REF }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+      - run: test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$SUPABASE_DB_PASSWORD" && test -n "$SUPABASE_PROJECT_REF"
+      - run: supabase link --project-ref "$SUPABASE_PROJECT_REF" --password "$SUPABASE_DB_PASSWORD"
+      - run: supabase db push --dry-run
+      - run: supabase db push
+
+  deploy:
+    needs: database
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure verified SSH host
+        shell: bash
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.OCI_SSH_PRIVATE_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.OCI_KNOWN_HOSTS }}
+        run: |
+          set -euo pipefail
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 600 ~/.ssh/known_hosts
+      - name: Upload deployment controls
+        env:
+          OCI_HOST: ${{ vars.OCI_HOST }}
+          OCI_USER: ${{ vars.OCI_USER }}
+        run: |
+          ssh "${OCI_USER}@${OCI_HOST}" 'mkdir -p /opt/pencilvid'
+          scp deploy/oracle/compose.yaml deploy/oracle/Caddyfile \
+            deploy/oracle/deploy.sh deploy/oracle/maintenance.sh \
+            "${OCI_USER}@${OCI_HOST}:/opt/pencilvid/"
+          ssh "${OCI_USER}@${OCI_HOST}" 'chmod 700 /opt/pencilvid/deploy.sh /opt/pencilvid/maintenance.sh'
+      - name: Deploy immutable image
+        env:
+          APP_DOMAIN: ${{ vars.APP_DOMAIN }}
+          OCI_HOST: ${{ vars.OCI_HOST }}
+          OCI_USER: ${{ vars.OCI_USER }}
+          RELEASE_IMAGE: ghcr.io/harsh271777/pencilvid:${{ github.sha }}
+          RELEASE_SHA: ${{ github.sha }}
+        run: |
+          ssh "${OCI_USER}@${OCI_HOST}" bash -s -- \
+            "${RELEASE_IMAGE}" "${RELEASE_SHA}" "${APP_DOMAIN}" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/pencilvid
+          IMAGE="$1" APP_VERSION="$2" APP_DOMAIN="$3" ./deploy.sh
+          REMOTE

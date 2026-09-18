@@ -1,0 +1,71 @@
+name: pencilvid
+
+x-app: &app
+  build:
+    context: .
+    args:
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_PUBLISHABLE_KEY: ${VITE_SUPABASE_PUBLISHABLE_KEY:-}
+      VITE_PUBLIC_DEMO_URL: ${VITE_PUBLIC_DEMO_URL:-}
+      VITE_PUBLIC_DEMO_POSTER_URL: ${VITE_PUBLIC_DEMO_POSTER_URL:-}
+  image: pencilvid:${APP_VERSION:-local}
+  env_file:
+    - .env
+  environment: &runtime-environment
+    APP_ENV: production
+    APP_VERSION: ${APP_VERSION:-local}
+    PORT: "5000"
+    JOB_EXECUTION_MODE: queue
+    USE_STREAMING: "1"
+    LOG_FORMAT: json
+    # Do not leak host-specific Windows paths/backends into the Linux image.
+    FFMPEG_BIN: ffmpeg
+    FFPROBE_BIN: ffprobe
+    # Production voice identity is part of the product contract. Fail closed
+    # if Piper is unavailable instead of silently changing narrators.
+    TTS_BACKEND: piper
+    PIPER_BIN: piper
+    PIPER_MODEL: /app/voices/en_US-lessac-medium.onnx
+    SUPABASE_URL: ${SUPABASE_URL:?Set SUPABASE_URL in .env}
+    SUPABASE_SECRET_KEY: ${SUPABASE_SECRET_KEY:?Set SUPABASE_SECRET_KEY in .env}
+    MEDIA_SIGNING_KEY: ${MEDIA_SIGNING_KEY:?Set MEDIA_SIGNING_KEY in .env}
+    ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:?Set ALLOWED_ORIGINS in .env}
+    MAX_VISUAL_WORKERS: "8"
+    SCENE_WORKERS: "8"
+  volumes:
+    - render-work:/app/work
+    - render-outputs:/app/outputs
+  restart: unless-stopped
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  web:
+    <<: *app
+    ports:
+      - "${HOST_PORT:-5000}:5000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:5000/readyz', timeout=5)"]
+      interval: 30s
+      timeout: 8s
+      retries: 3
+      start_period: 30s
+    stop_grace_period: 45s
+
+  worker:
+    <<: *app
+    command: ["python", "worker.py"]
+    environment:
+      <<: *runtime-environment
+      WORKER_HEALTH_FILE: /tmp/pencilvid-worker-heartbeat
+    healthcheck:
+      test: ["CMD", "python", "scripts/worker_healthcheck.py"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    stop_grace_period: 10m
+
+volumes:
+  render-work:
+  render-outputs:

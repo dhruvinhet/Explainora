@@ -1,0 +1,132 @@
+classDiagram
+    direction LR
+    class ProductionClient {
+        +startGeneration(input) JobRef
+        +subscribeJob(id, onUpdate)
+        +cancelGeneration(id)
+        +listVideos() VideoSummary[]
+        +getVideo(id) VideoDetail
+    }
+    class FlaskAPI {
+        +createVideo(request) JobRef
+        +jobStatus(jobId) Job
+        +cancelJob(jobId)
+        +listVideos() VideoSummary[]
+        +videoDetail(jobId) VideoDetail
+        +billingCheckout(plan) Checkout
+    }
+    class SupabaseStore {
+        +authenticate(token) User
+        +createJob(userId, jobId, payload) Job
+        +claimJob(workerId) Job
+        +heartbeatJob(jobId, workerId)
+        +replaceScenes(userId, jobId, scenes)
+        +updateScene(jobId, index, changes)
+        +completeVideo(userId, jobId, manifest) Video
+        +cancelJob(userId, jobId) Job
+        +quotaStatus(userId) Quota
+    }
+    class RenderWorker {
+        +runOnce() bool
+        +main()
+        -hydratePayload(job) Payload
+        -heartbeat(jobId)
+        -watchCancellation(jobId)
+    }
+    class JobRuntimeConfig {
+        +style String
+        +qualityMode String
+        +captions bool
+        +fromPayload(payload) JobRuntimeConfig
+        +diagnostics() Map
+    }
+    class Director {
+        +createVideoPlan(prompt, duration, audience) VideoPlan
+        +revisePlanForDuration(plan, actual, target) VideoPlan
+        +desiredSceneCount(duration) int
+        +narrationWordCount(plan) int
+    }
+    class SegmentPipeline {
+        +runStreamingPipeline(jobId, plan, runtime) Manifest
+        -buildSegment(scene) Segment
+        -makeAnimationTimeline(scene) Timeline
+        -buildEmergencySegment(scene) Segment
+    }
+    class VisualEngine {
+        +createVisualPlan(text, constraints) VisualPlan
+        +normalizeVisualPlan(plan) VisualPlan
+        +evaluatePreRenderQualityGate(plan) Report
+        +renderVisualPlan(plan, sketch) SVG
+    }
+    class StoryboardEngine {
+        +sanitizeStoryboard(raw) Storyboard
+        +buildStoryboardScene(raw) VisualPlan
+    }
+    class TTSEngine {
+        +resolveBackend() String
+        +synthesize(text, output) Audio
+        +audioDurationSeconds(path) float
+        +adjustTempo(source, target, tempo) Audio
+        +wordTimestamps(audio) WordTimestamp[]
+    }
+    class VideoEngine {
+        +svgToPng(svg, path) Image
+        +renderSceneVideo(image, audio, path) Segment
+        +renderSceneVideoSequence(frames, audio, path) Segment
+        +concatSceneVideos(segments, output) Video
+        +writeManifest(path, manifest)
+    }
+    class LLMProvider {
+        +getLLMConfig(role) LLMConfig
+        +createLLMClient(config) Client
+        +pooledCreate(client, config, request) Response
+        +fitCompletionTokenBudget(config, messages, requested) int
+    }
+    class APIKeyPool {
+        +checkout(tokens) KeyEntry
+        +record(entry, tokens)
+        +reconcile(entry, reserved, actual)
+        +quarantine(entry, severity)
+        +secondsUntilCapacity(tokens) float
+    }
+    class VideoPlan {
+        +title String
+        +learningGoal String
+        +mustCover String[]
+        +outOfScope String[]
+        +scenes Scene[]
+    }
+    class Scene {
+        +id int
+        +teachingBeat String
+        +narration String
+        +visualPrompt String
+        +durationSeconds float
+        +status String
+    }
+    class Manifest {
+        +jobId String
+        +title String
+        +durationSeconds float
+        +scenes SceneAsset[]
+        +coverage String[]
+    }
+    ProductionClient --> FlaskAPI : HTTPS / polling
+    FlaskAPI --> SupabaseStore : auth, quota, jobs, library
+    FlaskAPI --> RenderWorker : local mode only
+    RenderWorker --> SupabaseStore : claim, heartbeat, persist
+    RenderWorker --> JobRuntimeConfig : activates
+    RenderWorker --> Director : plans
+    RenderWorker --> SegmentPipeline : renders
+    Director --> LLMProvider
+    SegmentPipeline --> VisualEngine
+    SegmentPipeline --> TTSEngine
+    SegmentPipeline --> VideoEngine
+    VisualEngine --> StoryboardEngine
+    VisualEngine --> LLMProvider
+    LLMProvider --> APIKeyPool
+    Director --> VideoPlan : creates
+    VideoPlan *-- Scene
+    SegmentPipeline --> Manifest : creates
+    SupabaseStore --> Manifest : stores
+

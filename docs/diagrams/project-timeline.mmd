@@ -1,0 +1,37 @@
+gantt
+    title Proposed 12-Week Delivery Plan — PencilVid / Simi Studio
+    dateFormat  YYYY-MM-DD
+    axisFormat  %d %b
+    excludes    weekends
+
+    section Discovery and design
+    Requirements, use cases, success metrics       :a1, 2026-09-21, 5d
+    UX flows and system architecture                :a2, after a1, 5d
+    Architecture sign-off                           :milestone, m1, after a2, 0d
+
+    section Platform foundation
+    Supabase schema, Auth, RLS, storage              :b1, 2026-09-28, 10d
+    React application shell and API client           :b2, 2026-09-28, 10d
+    Flask API, validation, quotas, durable queue      :b3, 2026-10-05, 10d
+    Foundation complete                              :milestone, m2, after b3, 0d
+
+    section Generation pipeline
+    Director, scope lock, narration planning          :c1, 2026-10-12, 10d
+    TTS, timing, captions, duration calibration        :c2, 2026-10-19, 10d
+    Visual planning, storyboard, SVG quality gates     :c3, 2026-10-19, 15d
+    Scene animation, rendering, FFmpeg assembly        :c4, 2026-10-26, 15d
+    End-to-end generation available                    :milestone, m3, after c4, 0d
+
+    section Product integration
+    Progress polling and buffered scene playback       :d1, 2026-11-02, 10d
+    Library, video detail, download, cancellation       :d2, 2026-11-09, 10d
+    Plans, quota UX, account lifecycle                  :d3, 2026-11-09, 10d
+
+    section Verification and launch
+    Automated unit, integration, security tests         :e1, 2026-10-19, 35d
+    Load, failure recovery, and media quality testing   :e2, 2026-11-16, 10d
+    Production payment webhook and operational review   :e3, 2026-11-16, 10d
+    Deployment rehearsal, monitoring, runbooks          :e4, 2026-11-23, 5d
+    Release candidate                                   :milestone, m4, 2026-11-27, 0d
+    Pilot and stabilization                             :e5, 2026-11-30, 5d
+    Production launch                                   :milestone, m5, 2026-12-04, 0d
